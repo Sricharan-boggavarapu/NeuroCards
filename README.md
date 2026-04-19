@@ -1,6 +1,6 @@
-# NuroCards
+# NeuroCards
 
-NuroCards is a learning tool that converts PDFs into study decks, flashcards, and quick quizzes. It uses spaced repetition to help students retain school material more effectively.
+NeuroCards is a learning tool that converts PDFs into study decks, flashcards, and quick quizzes. It uses spaced repetition to help students retain school material more effectively.
 
 ## Features
 
@@ -102,4 +102,4 @@ Open source and ready to improve.
 
 ---
 
-Repository: https://github.com/Sricharan-boggavarapu/NuroCards
+Repository: https://github.com/Sricharan-boggavarapu/NeuroCards
