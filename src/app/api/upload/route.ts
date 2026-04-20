@@ -1,8 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+async function extractPdfText(buffer: Buffer) {
+  const canvas = await import("@napi-rs/canvas");
+
+  if (!("DOMMatrix" in globalThis)) {
+    // pdfjs-dist expects these globals in non-browser runtimes.
+    Reflect.set(globalThis, "DOMMatrix", canvas.DOMMatrix);
+  }
+  if (!("ImageData" in globalThis)) {
+    Reflect.set(globalThis, "ImageData", canvas.ImageData);
+  }
+  if (!("Path2D" in globalThis)) {
+    Reflect.set(globalThis, "Path2D", canvas.Path2D);
+  }
+
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loadingOptions = {
+    data: new Uint8Array(buffer),
+    disableWorker: true,
+    isEvalSupported: false,
+    useWorkerFetch: false,
+  } as unknown as Parameters<typeof pdfjs.getDocument>[0];
+  const loadingTask = pdfjs.getDocument(loadingOptions);
+
+  const pdf = await loadingTask.promise;
+  let text = "";
+
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .join(" ");
+      text += `${pageText}\n`;
+    }
+  } finally {
+    await pdf.destroy();
+  }
+
+  return text;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,10 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const parser = new PDFParse({ data: buffer });
-    const data = await parser.getText();
-    await parser.destroy();
-    const text = (data.text || "").replace(/\s+/g, " ").trim();
+    const text = (await extractPdfText(buffer)).replace(/\s+/g, " ").trim();
 
     if (text.length < 80) {
       return NextResponse.json(
