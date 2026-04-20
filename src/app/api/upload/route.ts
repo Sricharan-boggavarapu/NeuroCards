@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -17,6 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const pdfParse = require("pdf-parse");
     const data = await pdfParse(buffer);
     const text = (data.text || "").replace(/\s+/g, " ").trim();
 
