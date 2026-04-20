@@ -1,29 +1,117 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRequire } from "node:module";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const require = createRequire(import.meta.url);
+class MinimalDOMMatrix {
+  a = 1;
+  b = 0;
+  c = 0;
+  d = 1;
+  e = 0;
+  f = 0;
 
-async function extractPdfText(buffer: Buffer) {
-  const canvas = require("@napi-rs/canvas") as typeof import("@napi-rs/canvas");
+  constructor(init?: number[] | string) {
+    if (Array.isArray(init) && init.length >= 6) {
+      [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+    }
+  }
 
+  multiplySelf() {
+    return this;
+  }
+
+  preMultiplySelf() {
+    return this;
+  }
+
+  translateSelf(tx = 0, ty = 0) {
+    this.e += tx;
+    this.f += ty;
+    return this;
+  }
+
+  scaleSelf(scaleX = 1, scaleY = scaleX) {
+    this.a *= scaleX;
+    this.d *= scaleY;
+    return this;
+  }
+
+  rotateSelf() {
+    return this;
+  }
+
+  invertSelf() {
+    return this;
+  }
+
+  static fromFloat32Array(array: Float32Array) {
+    return new MinimalDOMMatrix(Array.from(array));
+  }
+
+  static fromFloat64Array(array: Float64Array) {
+    return new MinimalDOMMatrix(Array.from(array));
+  }
+
+  static fromMatrix(matrix?: { a?: number; b?: number; c?: number; d?: number; e?: number; f?: number }) {
+    return new MinimalDOMMatrix([
+      matrix?.a ?? 1,
+      matrix?.b ?? 0,
+      matrix?.c ?? 0,
+      matrix?.d ?? 1,
+      matrix?.e ?? 0,
+      matrix?.f ?? 0,
+    ]);
+  }
+}
+
+class MinimalImageData {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
+
+  constructor(widthOrData: number | Uint8ClampedArray, width: number, height?: number) {
+    if (typeof widthOrData === "number") {
+      this.width = widthOrData;
+      this.height = width;
+      this.data = new Uint8ClampedArray(this.width * this.height * 4);
+      return;
+    }
+
+    this.data = widthOrData;
+    this.width = width;
+    this.height = height ?? Math.max(1, Math.floor(widthOrData.length / 4 / width));
+  }
+}
+
+class MinimalPath2D {
+  constructor(path?: string | MinimalPath2D) {
+    void path;
+  }
+}
+
+async function ensurePdfJsRuntime() {
   if (!("DOMMatrix" in globalThis)) {
-    // pdfjs-dist expects these globals in non-browser runtimes.
-    Reflect.set(globalThis, "DOMMatrix", canvas.DOMMatrix);
+    Reflect.set(globalThis, "DOMMatrix", MinimalDOMMatrix);
   }
   if (!("ImageData" in globalThis)) {
-    Reflect.set(globalThis, "ImageData", canvas.ImageData);
+    Reflect.set(globalThis, "ImageData", MinimalImageData);
   }
   if (!("Path2D" in globalThis)) {
-    Reflect.set(globalThis, "Path2D", canvas.Path2D);
+    Reflect.set(globalThis, "Path2D", MinimalPath2D);
   }
+  if (!("pdfjsWorker" in globalThis)) {
+    const workerModule = await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
+    Reflect.set(globalThis, "pdfjsWorker", workerModule);
+  }
+}
+
+async function extractPdfText(buffer: Buffer) {
+  await ensurePdfJsRuntime();
 
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingOptions = {
     data: new Uint8Array(buffer),
-    disableWorker: true,
     isEvalSupported: false,
     useWorkerFetch: false,
   } as unknown as Parameters<typeof pdfjs.getDocument>[0];
