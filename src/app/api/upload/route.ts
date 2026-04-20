@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRequire } from "node:module";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
+const require = createRequire(import.meta.url);
+
 async function extractPdfText(buffer: Buffer) {
-  const canvas = await import("@napi-rs/canvas");
+  const canvas = require("@napi-rs/canvas") as typeof import("@napi-rs/canvas");
 
   if (!("DOMMatrix" in globalThis)) {
     // pdfjs-dist expects these globals in non-browser runtimes.
